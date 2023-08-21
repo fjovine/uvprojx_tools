@@ -46,7 +46,12 @@ public class IncludeFiles
 
         XmlDocument xmlDoc = new XmlDocument();
         xmlDoc.Load(projectPath); // Replace with the actual path
-        XmlNodeList includePathNodes = xmlDoc.SelectNodes("//IncludePath");
+        XmlNodeList? includePathNodes = xmlDoc.SelectNodes("//IncludePath");
+
+        if (includePathNodes is null)
+        {
+            throw new Exception("No Includepath in project");
+        }
 
         foreach (XmlNode includePathNode in includePathNodes)
         {
@@ -96,14 +101,19 @@ public class IncludeFiles
         return target2IncludedPaths.Keys.ToList();
     }
 
-    public Dictionary<string, string> GetIncludeFilesForTarget(string target)
+    /// <summary>
+    /// This method builds a map between an include filename (*.h) and a set of paths where this headers are found.
+    /// </summary>
+    /// <param name="target"></param>
+    /// <returns></returns>
+    public Dictionary<string, HashSet<string>> GetIncludeFilesForTarget(string target)
     {
-        if (!target2IncludedPaths.ContainsKey(target))
+        if (!ContainsTarget(target))
         {
             throw new ArgumentException("Target not found");
         }
 
-        var result = new Dictionary<string, string>();
+        var result = new Dictionary<string, HashSet<string>>();
 
         foreach (var path in GetIncludePaths(target))
         {
@@ -115,21 +125,20 @@ public class IncludeFiles
             foreach (var headerPath in Directory.GetFiles(path, "*.h", SearchOption.AllDirectories))
             {
                 var headerFilename = Path.GetFileName(headerPath);
-                if (result.ContainsKey(headerFilename))
-                {
-                    if (result[headerFilename] == headerPath)
-                    {
-                        continue;
-                    }
-
-                    Console.WriteLine($"The file {headerFilename} is already included path now {headerPath} path before  {result[headerFilename]}");
-                    continue;
+                
+                if (!result.ContainsKey(headerFilename)) {
+                    result[headerFilename] = new HashSet<string>();
                 }
 
-                result[headerFilename] = headerPath;
+                result[headerFilename].Add(headerPath);
             }
         }
 
         return result;
+    }
+
+    public bool ContainsTarget(string target)
+    {
+        return target2IncludedPaths.ContainsKey(target);
     }
 }
